@@ -5,21 +5,21 @@ module Minute {
         restrict = 'AE';
         replace = false;
         require = 'ngModel';
-        scope: any = {steps: '=', options: '=?', ngModel: '=?'};
+        scope: any = {steps: '=', config: '=?', ngModel: '=?'};
 
         template: string = `
         <div class="box">
             <div class="box-header with-border">
-                <div class="box-title">{{steps[wizard.index].heading || options.title || 'Wizard'}}</div>
+                <div class="box-title">{{steps[wizard.index].heading || config.title || 'Wizard'}}</div>
         
-                <div class="box-tools hidden-xs" ng-if="!!options.icons">
+                <div class="box-tools hidden-xs" ng-if="!!config.icons">
                     <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-default btn-flat btn-xs {{$index == wizard.index && 'active' || ''}}" ng-repeat="step in steps"
+                        <button type="button" class="btn btn-flat btn-xs {{$index == wizard.index && 'btn-info' || 'btn-default'}}" ng-repeat="step in steps"
                                 ng-click="wizard.jump($index)"><i class="fa fa-fw {{step.icon}}" tooltip="{{step.iconText}}"></i></button>
                     </div>
                 </div>
             </div>
-            <div class="item box-body pre-scrollable" style="min-height: {{options.minHeight || 350}}px; position: relative; overflow-x: hidden; overflow-y: auto;">
+            <div class="item box-body pre-scrollable" style="min-height: {{config.minHeight || 350}}px; position: relative; overflow-x: hidden; overflow-y: auto;">
                 <div style="position: absolute; width: 96%; padding: 0 20px" id="loaderDiv">
                     <div ng-include src="wizard.template"></div>
                 </div>
@@ -28,41 +28,56 @@ module Minute {
                 </div>
             </div>
             <div class="box-footer with-border">
+                <div class="pull-left" ng-if="!!wizard.config.buttons.length">
+                    <span ng-repeat="button in wizard.config.buttons">
+                        <button type="button" class="{{button.btnClass || 'btn btn-flat btn-default btn-sm'}}" ng-click="run(button.click)" ng-show="!button.show || $eval(button.show)">
+                            <i ng-show="button.icon" class="fa {{button.icon}}"></i> {{button.label || 'Help'}}
+                        </button>
+                    </span>
+                </div>
                 <div class="pull-right">
-                    <button type="button" class="btn btn-flat btn-default" ng-disabled="!wizard.index" ng-show="!options.hideBackButton" ng-click="wizard.back()">
+                    <button type="button" class="btn btn-flat btn-default" ng-disabled="!wizard.index" ng-show="!config.hideBackButton" ng-click="wizard.call('back')">
                         <i class="fa fa-caret-left"></i> <span translate="">Back</span>
                     </button>
-                    <button type="submit" class="btn btn-flat btn-primary text-bold" ng-disabled="((wizard.index >= steps.length - 1) || !wizard.nextEnabled())" ng-click="wizard.next()">
+                    <button type="submit" class="btn btn-flat btn-primary text-bold" ng-disabled="((wizard.index >= steps.length - 1) || !wizard.nextEnabled())" ng-click="wizard.call('next')">
                         <span style="padding: 0 20px;"><span translate="">Next</span> <i class="fa fa-caret-right"></i></span>
                     </button>
                 </div>
             </div>
         </div>`;
 
-        constructor(private $compile: ng.ICompileService, private $timeout: ng.ITimeoutService, private $http: ng.IHttpService, private $templateCache: ng.ITemplateCacheService) {
+        constructor(private $rootScope: any, private $compile: ng.ICompileService, private $timeout: ng.ITimeoutService, private $http: ng.IHttpService, private $templateCache: ng.ITemplateCacheService,
+                    private $minute: any) {
         }
 
         static factory(): ng.IDirectiveFactory {
-            var directive: ng.IDirectiveFactory = ($compile: ng.ICompileService, $timeout: ng.ITimeoutService, $http: ng.IHttpService, $templateCache: ng.ITemplateCacheService) => new AngularWizard($compile, $timeout, $http, $templateCache);
-            directive.$inject = ["$compile", "$timeout", "$http", "$templateCache"];
+            let directive: ng.IDirectiveFactory = ($rootScope: ng.IRootScopeService, $compile: ng.ICompileService, $timeout: ng.ITimeoutService, $http: ng.IHttpService,
+                                                   $templateCache: ng.ITemplateCacheService, $minute: any) => new AngularWizard($rootScope, $compile, $timeout, $http, $templateCache, $minute);
+            directive.$inject = ["$rootScope", "$compile", "$timeout", "$http", "$templateCache", "$minute"];
             return directive;
         }
 
         link = ($scope: any, element: ng.IAugmentedJQuery, attrs: ng.IAttributes, ngModel: ng.INgModelController) => {
             let init = false;
 
-            $scope.wizard = {};
-            $scope.form = $scope.ngModel;
+            $scope.wizard = {global: {}, config: $scope.config};
+            $scope.project = $scope.ngModel;
+            $scope.session = this.$rootScope.session;
 
             let getMaxIndex = () => {
-                let jump = $scope.options.jumps;
-                return jump === 'all' ? $scope.steps.length - 1 : (jump === 'restricted' ? ($scope.form.wizard ? parseInt($scope.form.wizard.maxIndex || 0) : 0) : 0);
+                let jump = $scope.config.jumps;
+                return jump === 'all' ? $scope.steps.length - 1 : (jump === 'restricted' ? ($scope.project.wizard ? parseInt($scope.project.wizard.maxIndex || 0) : 0) : 0);
             };
 
             let setMaxIndex = (index) => {
-                if ($scope.options.jumps === 'restricted') {
-                    angular.extend($scope.form, {wizard: {maxIndex: index}});
+                if ($scope.config.jumps === 'restricted') {
+                    angular.extend($scope.project, {wizard: {maxIndex: index}});
                 }
+            };
+
+            $scope.wizard.call = (fName: string) => {
+                let fn = $scope.wizard.overrides[fName] || $scope.wizard[fName];
+                return fn();
             };
 
             $scope.wizard.next = () => {
@@ -81,8 +96,8 @@ module Minute {
                     let next = () => {
                         let step = $scope.wizard.load(index + 1, true);
 
-                        if (step && typeof $scope.options.onNext === 'function') {
-                            $scope.options.onNext(step);
+                        if (step && typeof $scope.config.onNext === 'function') {
+                            $scope.config.onNext(step);
                         }
                     };
 
@@ -97,13 +112,17 @@ module Minute {
             $scope.wizard.back = () => {
                 let step = $scope.wizard.load(typeof $scope.wizard.index == 'undefined' ? 0 : ($scope.wizard.index || 0) - 1, false);
 
-                if (step && typeof $scope.options.onBack === 'function') {
-                    $scope.options.onBack(step);
+                if (step && typeof $scope.config.onBack === 'function') {
+                    $scope.config.onBack(step);
                 }
             };
 
+            $scope.wizard.help = (topic) => {
+                alert(topic);
+            };
+
             $scope.wizard.jump = (index) => {
-                let mode = $scope.options.jumps || 'none';
+                let mode = $scope.config.jumps || 'none';
 
                 if ((mode === 'all') || (mode === 'restricted' && index <= getMaxIndex())) {
                     $scope.wizard.load(index, true);
@@ -111,7 +130,7 @@ module Minute {
             };
 
             $scope.wizard.load = (index: number, ltr: boolean) => {
-                let interval = $scope.options.interval || 500;
+                let interval = $scope.config.interval || 500;
 
                 if (index >= 0 && index < $scope.steps.length) {
                     $scope.wizard.index = index;
@@ -122,9 +141,11 @@ module Minute {
                     let loaderDiv = $('#loaderDiv');
                     let preloaderDiv = $('#preloaderDiv');
 
-                    $scope.wizard.submit = null;
-                    $scope.wizard.activeDiv = loaderDiv;
-                    $scope.wizard.nextEnabled = () => true;
+                    angular.extend($scope.wizard, {submit: null, activeDiv: loaderDiv, nextEnabled: () => true, overrides: {}});
+                    /*$scope.wizard.submit = null;
+                     $scope.wizard.activeDiv = loaderDiv;
+                     $scope.wizard.nextEnabled = () => true;
+                     $scope.wizard.overrides = {};*/
 
                     if (!$scope.wizard.template) {
                         $scope.wizard.template = step;
@@ -190,10 +211,16 @@ module Minute {
                     }
                 }
             });
+
+            $scope.run = (code) => {
+                if (typeof code == 'function') {
+                    code();
+                }
+            }
         }
     }
 
-    angular.module('AngularWizard', [])
+    angular.module('AngularWizard', ['MinuteFramework'])
         .directive('angularWizard', AngularWizard.factory());
 
     angular.module('AngularWizard').config(['$controllerProvider', function ($controllerProvider) {
