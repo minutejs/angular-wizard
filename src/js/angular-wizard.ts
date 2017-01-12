@@ -57,7 +57,8 @@ module Minute {
             return directive;
         }
 
-        link = ($scope: any, element: ng.IAugmentedJQuery, attrs: ng.IAttributes, ngModel: ng.INgModelController) => {
+        //link = ($scope: any, element: ng.IAugmentedJQuery, attrs: ng.IAttributes, ngModel: ng.INgModelController) =>
+        controller = ($scope: any) => { //, element: ng.IAugmentedJQuery, attrs: ng.IAttributes, ngModel: ng.INgModelController) => {
             let init = false;
 
             $scope.wizard = {global: {}, config: $scope.config};
@@ -178,7 +179,7 @@ module Minute {
                         }
                     }
 
-                    window.history.pushState($scope.steps[index].title, $scope.steps[index].title, '/members/wizard#/' + $scope.steps[index].url);
+                    window.history.pushState({index: index + 1}, $scope.steps[index].heading || 'Wizard', '#/' + $scope.steps[index].url);
                     this.$timeout(() => $scope.wizard.activeDiv.find('.auto-focus:first').focus(), interval + 100);
 
                     return step;
@@ -202,7 +203,8 @@ module Minute {
 
                         this.$timeout(() => {
                             let start = $.trim((window.location.hash || '').replace(/^#\//, ''));
-                            let step = start ? Minute.Utils.findWhere($scope.steps, {url: start}) : null;
+                            let step = start ? Minute.Utils.findWhere($scope.steps, {url: start}) : $scope.steps[0];
+
                             if (step) {
                                 let index = $scope.steps.indexOf(step);
                                 $scope.wizard.load(index === -1 ? 0 : index <= getMaxIndex() ? index : 0, true);
@@ -215,6 +217,12 @@ module Minute {
             $scope.run = (code) => {
                 if (typeof code == 'function') {
                     code();
+                }
+            };
+
+            window.onpopstate = function (event) {
+                if (event && event.state && event.state.index > 0) {
+                    $scope.wizard.load(event.state.index - 1);
                 }
             }
         }
