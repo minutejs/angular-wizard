@@ -118,8 +118,8 @@ module Minute {
                 }
             };
 
-            $scope.wizard.help = (topic) => {
-                alert(topic);
+            $scope.wizard.help = (topic, popup = false) => {
+                window.open('/members/help/' + topic, popup ? 'popup' : '_blank', popup ? 'width=640,height=480' : '');
             };
 
             $scope.wizard.jump = (index) => {
@@ -143,10 +143,6 @@ module Minute {
                     let preloaderDiv = $('#preloaderDiv');
 
                     angular.extend($scope.wizard, {submit: null, activeDiv: loaderDiv, nextEnabled: () => true, overrides: {}});
-                    /*$scope.wizard.submit = null;
-                     $scope.wizard.activeDiv = loaderDiv;
-                     $scope.wizard.nextEnabled = () => true;
-                     $scope.wizard.overrides = {};*/
 
                     if (!$scope.wizard.template) {
                         $scope.wizard.template = step;
@@ -180,7 +176,7 @@ module Minute {
                     }
 
                     window.history.pushState({index: index + 1}, $scope.steps[index].heading || 'Wizard', '#/' + $scope.steps[index].url);
-                    this.$timeout(() => $scope.wizard.activeDiv.find('.auto-focus:first').focus(), interval + 100);
+                    this.$timeout(() => $scope.wizard.activeDiv.find('.auto-focus:first').focus(), interval + 250);
 
                     return step;
                 }

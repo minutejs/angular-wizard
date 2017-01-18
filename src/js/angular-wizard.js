@@ -67,8 +67,9 @@ var Minute;
                         $scope.config.onBack(step);
                     }
                 };
-                $scope.wizard.help = function (topic) {
-                    alert(topic);
+                $scope.wizard.help = function (topic, popup) {
+                    if (popup === void 0) { popup = false; }
+                    window.open('/members/help/' + topic, popup ? 'popup' : '_blank', popup ? 'width=640,height=480' : '');
                 };
                 $scope.wizard.jump = function (index) {
                     var mode = $scope.config.jumps || 'none';
@@ -85,10 +86,6 @@ var Minute;
                         var loaderDiv_1 = $('#loaderDiv');
                         var preloaderDiv_1 = $('#preloaderDiv');
                         angular.extend($scope.wizard, { submit: null, activeDiv: loaderDiv_1, nextEnabled: function () { return true; }, overrides: {} });
-                        /*$scope.wizard.submit = null;
-                         $scope.wizard.activeDiv = loaderDiv;
-                         $scope.wizard.nextEnabled = () => true;
-                         $scope.wizard.overrides = {};*/
                         if (!$scope.wizard.template) {
                             $scope.wizard.template = step_1;
                         }
@@ -118,7 +115,7 @@ var Minute;
                             }
                         }
                         window.history.pushState({ index: index + 1 }, $scope.steps[index].heading || 'Wizard', '#/' + $scope.steps[index].url);
-                        _this.$timeout(function () { return $scope.wizard.activeDiv.find('.auto-focus:first').focus(); }, interval + 100);
+                        _this.$timeout(function () { return $scope.wizard.activeDiv.find('.auto-focus:first').focus(); }, interval + 250);
                         return step_1;
                     }
                     return null;
