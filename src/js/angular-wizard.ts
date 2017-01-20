@@ -39,7 +39,7 @@ module Minute {
                     <button type="button" class="btn btn-flat btn-default" ng-disabled="!wizard.index" ng-show="!config.hideBackButton" ng-click="wizard.call('back')">
                         <i class="fa fa-caret-left"></i> <span translate="">Back</span>
                     </button>
-                    <button type="submit" class="btn btn-flat btn-primary text-bold" ng-disabled="((wizard.index >= steps.length - 1) || !wizard.nextEnabled())" ng-click="wizard.call('next')">
+                    <button type="submit" class="btn btn-flat btn-primary text-bold" ng-disabled="((wizard.index >= steps.length - 1) || !!wizard.loading || !wizard.nextEnabled())" ng-click="wizard.call('next')">
                         <span style="padding: 0 20px;"><span translate="">Next</span> <i class="fa fa-caret-right"></i></span>
                     </button>
                 </div>
@@ -61,7 +61,7 @@ module Minute {
         controller = ($scope: any) => { //, element: ng.IAugmentedJQuery, attrs: ng.IAttributes, ngModel: ng.INgModelController) => {
             let init = false;
 
-            $scope.wizard = {global: {}, config: $scope.config};
+            $scope.wizard = {global: {}, config: $scope.config, loading: false};
             $scope.project = $scope.ngModel;
             $scope.session = this.$rootScope.session;
 
@@ -82,6 +82,8 @@ module Minute {
             };
 
             $scope.wizard.next = () => {
+                $scope.wizard.loading = true;
+
                 let form = $scope.wizard.activeDiv ? $scope.wizard.activeDiv.find('form:not([novalidate])').first() : null;
 
                 if (form && form.length && !form[0].checkValidity()) {
@@ -102,8 +104,14 @@ module Minute {
                         }
                     };
 
-                    if (typeof $scope.wizard.submit === 'function') {
-                        $scope.wizard.submit().then(next);//.catch(() => 1);
+                    if (typeof $scope.config.submit === 'function') {
+                        let result = $scope.config.submit();
+
+                        if (result instanceof Promise) {
+                            result.then(next);//.catch(() => 1);
+                        } else {
+                            next();
+                        }
                     } else {
                         next();
                     }
@@ -149,6 +157,7 @@ module Minute {
                     } else {
                         if (!$scope.wizard.preloader) {
                             $scope.wizard.preload = null;
+
                             this.$timeout(() => {
                                 $scope.wizard.preload = step;
                                 $scope.wizard.activeDiv = preloaderDiv;
@@ -162,6 +171,7 @@ module Minute {
                             });
                         } else {
                             $scope.wizard.template = null;
+
                             this.$timeout(() => {
                                 $scope.wizard.template = step;
                                 $scope.wizard.preloader = false;
@@ -175,8 +185,9 @@ module Minute {
                         }
                     }
 
-                    window.history.pushState({index: index + 1}, $scope.steps[index].heading || 'Wizard', '#/' + $scope.steps[index].url);
+                    window.history.pushState({index: index + 1}, $scope.steps[index].heading || 'Wizard', '#!/' + $scope.steps[index].url);
                     this.$timeout(() => $scope.wizard.activeDiv.find('.auto-focus:first').focus(), interval + 250);
+                    this.$timeout(() => $scope.wizard.loading = false);
 
                     return step;
                 }
@@ -198,7 +209,7 @@ module Minute {
                         init = true;
 
                         this.$timeout(() => {
-                            let start = $.trim((window.location.hash || '').replace(/^#\//, ''));
+                            let start = $.trim((window.location.hash || '').replace(/^#!\//, ''));
                             let step = start ? Minute.Utils.findWhere($scope.steps, {url: start}) : $scope.steps[0];
 
                             if (step) {
@@ -218,16 +229,13 @@ module Minute {
 
             window.onpopstate = function (event) {
                 if (event && event.state && event.state.index > 0) {
-                    $scope.wizard.load(event.state.index - 1);
+                    //$scope.wizard.load(event.state.index - 1);
                 }
             }
         }
     }
 
     angular.module('AngularWizard', ['MinuteFramework'])
+        .config(['$controllerProvider', ($controllerProvider) => angular.module('WizardApp').controller = $controllerProvider.register])
         .directive('angularWizard', AngularWizard.factory());
-
-    angular.module('AngularWizard').config(['$controllerProvider', function ($controllerProvider) {
-        angular.module('WizardApp').controller = $controllerProvider.register;
-    }]);
 }

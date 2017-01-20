@@ -14,11 +14,11 @@ var Minute;
             this.replace = false;
             this.require = 'ngModel';
             this.scope = { steps: '=', config: '=?', ngModel: '=?' };
-            this.template = "\n        <div class=\"box\">\n            <div class=\"box-header with-border\">\n                <div class=\"box-title\">{{steps[wizard.index].heading || config.title || 'Wizard'}}</div>\n        \n                <div class=\"box-tools hidden-xs\" ng-if=\"!!config.icons\">\n                    <div class=\"btn-group\" role=\"group\">\n                        <button type=\"button\" class=\"btn btn-flat btn-xs {{$index == wizard.index && 'btn-info' || 'btn-default'}}\" ng-repeat=\"step in steps\"\n                                ng-click=\"wizard.jump($index)\"><i class=\"fa fa-fw {{step.icon}}\" tooltip=\"{{step.iconText}}\"></i></button>\n                    </div>\n                </div>\n            </div>\n            <div class=\"item box-body pre-scrollable\" style=\"min-height: {{config.minHeight || 350}}px; position: relative; overflow-x: hidden; overflow-y: auto;\">\n                <div style=\"position: absolute; width: 96%; padding: 0 20px\" id=\"loaderDiv\">\n                    <div ng-include src=\"wizard.template\"></div>\n                </div>\n                <div style=\"position: absolute; width: 96%; padding: 0 20px\" id=\"preloaderDiv\">\n                    <div ng-include src=\"wizard.preload\"></div>\n                </div>\n            </div>\n            <div class=\"box-footer with-border\">\n                <div class=\"pull-left\" ng-if=\"!!wizard.config.buttons.length\">\n                    <span ng-repeat=\"button in wizard.config.buttons\">\n                        <button type=\"button\" class=\"{{button.btnClass || 'btn btn-flat btn-default btn-sm'}}\" ng-click=\"run(button.click)\" ng-show=\"!button.show || $eval(button.show)\">\n                            <i ng-show=\"button.icon\" class=\"fa {{button.icon}}\"></i> {{button.label || 'Help'}}\n                        </button>\n                    </span>\n                </div>\n                <div class=\"pull-right\">\n                    <button type=\"button\" class=\"btn btn-flat btn-default\" ng-disabled=\"!wizard.index\" ng-show=\"!config.hideBackButton\" ng-click=\"wizard.call('back')\">\n                        <i class=\"fa fa-caret-left\"></i> <span translate=\"\">Back</span>\n                    </button>\n                    <button type=\"submit\" class=\"btn btn-flat btn-primary text-bold\" ng-disabled=\"((wizard.index >= steps.length - 1) || !wizard.nextEnabled())\" ng-click=\"wizard.call('next')\">\n                        <span style=\"padding: 0 20px;\"><span translate=\"\">Next</span> <i class=\"fa fa-caret-right\"></i></span>\n                    </button>\n                </div>\n            </div>\n        </div>";
+            this.template = "\n        <div class=\"box\">\n            <div class=\"box-header with-border\">\n                <div class=\"box-title\">{{steps[wizard.index].heading || config.title || 'Wizard'}}</div>\n        \n                <div class=\"box-tools hidden-xs\" ng-if=\"!!config.icons\">\n                    <div class=\"btn-group\" role=\"group\">\n                        <button type=\"button\" class=\"btn btn-flat btn-xs {{$index == wizard.index && 'btn-info' || 'btn-default'}}\" ng-repeat=\"step in steps\"\n                                ng-click=\"wizard.jump($index)\"><i class=\"fa fa-fw {{step.icon}}\" tooltip=\"{{step.iconText}}\"></i></button>\n                    </div>\n                </div>\n            </div>\n            <div class=\"item box-body pre-scrollable\" style=\"min-height: {{config.minHeight || 350}}px; position: relative; overflow-x: hidden; overflow-y: auto;\">\n                <div style=\"position: absolute; width: 96%; padding: 0 20px\" id=\"loaderDiv\">\n                    <div ng-include src=\"wizard.template\"></div>\n                </div>\n                <div style=\"position: absolute; width: 96%; padding: 0 20px\" id=\"preloaderDiv\">\n                    <div ng-include src=\"wizard.preload\"></div>\n                </div>\n            </div>\n            <div class=\"box-footer with-border\">\n                <div class=\"pull-left\" ng-if=\"!!wizard.config.buttons.length\">\n                    <span ng-repeat=\"button in wizard.config.buttons\">\n                        <button type=\"button\" class=\"{{button.btnClass || 'btn btn-flat btn-default btn-sm'}}\" ng-click=\"run(button.click)\" ng-show=\"!button.show || $eval(button.show)\">\n                            <i ng-show=\"button.icon\" class=\"fa {{button.icon}}\"></i> {{button.label || 'Help'}}\n                        </button>\n                    </span>\n                </div>\n                <div class=\"pull-right\">\n                    <button type=\"button\" class=\"btn btn-flat btn-default\" ng-disabled=\"!wizard.index\" ng-show=\"!config.hideBackButton\" ng-click=\"wizard.call('back')\">\n                        <i class=\"fa fa-caret-left\"></i> <span translate=\"\">Back</span>\n                    </button>\n                    <button type=\"submit\" class=\"btn btn-flat btn-primary text-bold\" ng-disabled=\"((wizard.index >= steps.length - 1) || !!wizard.loading || !wizard.nextEnabled())\" ng-click=\"wizard.call('next')\">\n                        <span style=\"padding: 0 20px;\"><span translate=\"\">Next</span> <i class=\"fa fa-caret-right\"></i></span>\n                    </button>\n                </div>\n            </div>\n        </div>";
             //link = ($scope: any, element: ng.IAugmentedJQuery, attrs: ng.IAttributes, ngModel: ng.INgModelController) =>
             this.controller = function ($scope) {
                 var init = false;
-                $scope.wizard = { global: {}, config: $scope.config };
+                $scope.wizard = { global: {}, config: $scope.config, loading: false };
                 $scope.project = $scope.ngModel;
                 $scope.session = _this.$rootScope.session;
                 var getMaxIndex = function () {
@@ -35,6 +35,7 @@ var Minute;
                     return fn();
                 };
                 $scope.wizard.next = function () {
+                    $scope.wizard.loading = true;
                     var form = $scope.wizard.activeDiv ? $scope.wizard.activeDiv.find('form:not([novalidate])').first() : null;
                     if (form && form.length && !form[0].checkValidity()) {
                         var submit = form.find(':submit');
@@ -53,8 +54,14 @@ var Minute;
                                 $scope.config.onNext(step);
                             }
                         };
-                        if (typeof $scope.wizard.submit === 'function') {
-                            $scope.wizard.submit().then(next); //.catch(() => 1);
+                        if (typeof $scope.config.submit === 'function') {
+                            var result = $scope.config.submit();
+                            if (result instanceof Promise) {
+                                result.then(next); //.catch(() => 1);
+                            }
+                            else {
+                                next();
+                            }
                         }
                         else {
                             next();
@@ -114,8 +121,9 @@ var Minute;
                                 });
                             }
                         }
-                        window.history.pushState({ index: index + 1 }, $scope.steps[index].heading || 'Wizard', '#/' + $scope.steps[index].url);
+                        window.history.pushState({ index: index + 1 }, $scope.steps[index].heading || 'Wizard', '#!/' + $scope.steps[index].url);
                         _this.$timeout(function () { return $scope.wizard.activeDiv.find('.auto-focus:first').focus(); }, interval + 250);
+                        _this.$timeout(function () { return $scope.wizard.loading = false; });
                         return step_1;
                     }
                     return null;
@@ -131,7 +139,7 @@ var Minute;
                         if (!init) {
                             init = true;
                             _this.$timeout(function () {
-                                var start = $.trim((window.location.hash || '').replace(/^#\//, ''));
+                                var start = $.trim((window.location.hash || '').replace(/^#!\//, ''));
                                 var step = start ? Minute.Utils.findWhere($scope.steps, { url: start }) : $scope.steps[0];
                                 if (step) {
                                     var index = $scope.steps.indexOf(step);
@@ -148,7 +156,6 @@ var Minute;
                 };
                 window.onpopstate = function (event) {
                     if (event && event.state && event.state.index > 0) {
-                        $scope.wizard.load(event.state.index - 1);
                     }
                 };
             };
@@ -164,8 +171,6 @@ var Minute;
     }());
     Minute.AngularWizard = AngularWizard;
     angular.module('AngularWizard', ['MinuteFramework'])
+        .config(['$controllerProvider', function ($controllerProvider) { return angular.module('WizardApp').controller = $controllerProvider.register; }])
         .directive('angularWizard', AngularWizard.factory());
-    angular.module('AngularWizard').config(['$controllerProvider', function ($controllerProvider) {
-            angular.module('WizardApp').controller = $controllerProvider.register;
-        }]);
 })(Minute || (Minute = {}));
