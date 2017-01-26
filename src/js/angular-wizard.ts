@@ -19,11 +19,11 @@ module Minute {
                     </div>
                 </div>
             </div>
-            <div class="item box-body pre-scrollable" style="min-height: {{config.minHeight || 350}}px; position: relative; overflow-x: hidden; overflow-y: auto;">
-                <div style="position: absolute; width:100%; padding-right:16px;" id="loaderDiv">
+            <div class="item box-body pre-scrollable" style="min-height: {{config.minHeight || 350}}px; position: relative; overflow-x: hidden; overflow-y: auto; margin: 0 26px;">
+                <div style="position: absolute; width:100%;" id="loaderDiv">
                     <div ng-include src="wizard.template"></div>
                 </div>
-                <div style="position: absolute; width: 96%; padding: 0 20px" id="preloaderDiv">
+                <div style="position: absolute; width:100%;" id="preloaderDiv">
                     <div ng-include src="wizard.preload"></div>
                 </div>
             </div>
